@@ -30,6 +30,13 @@ export interface RequiredOptions extends Options {
     color: string;
     gradient?: Gradient;
   };
+  maskOptions: {
+    drawMask: boolean;
+    color?: string;
+    image?: string;
+    imageSize?: number;
+    cornersMask?: boolean;
+  };
 }
 
 const defaultOptions: RequiredOptions = {
@@ -56,6 +63,11 @@ const defaultOptions: RequiredOptions = {
   },
   backgroundOptions: {
     color: "#fff"
+  },
+  maskOptions: {
+    drawMask: false,
+    imageSize: 0.8,
+    cornersMask: true
   }
 };
 

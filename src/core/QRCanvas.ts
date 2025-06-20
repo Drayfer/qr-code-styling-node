@@ -32,6 +32,7 @@ export default class QRCanvas {
   _options: RequiredOptions;
   _qr?: QRCode;
   _image?: HTMLImageElement;
+  _backgroundImage?: HTMLImageElement;
 
   //TODO don't pass all options to this class
   constructor(options: RequiredOptions) {
@@ -98,8 +99,19 @@ export default class QRCanvas {
       });
     }
 
+    if (this._options.maskOptions?.image) {
+      await this.loadBackgroundImage();
+      if (!this._backgroundImage) return;
+    }
+
     this.clear();
     this.drawBackground();
+    if (this._options.maskOptions?.image) {
+      this.drawBackgroundImageCanvas({
+        count,
+        dotSize
+      });
+    }
     this.drawDots((i: number, j: number): boolean => {
       if (this._options.imageOptions.hideBackgroundDots) {
         if (
@@ -181,28 +193,12 @@ export default class QRCanvas {
     const yBeginning = Math.floor((options.height - count * dotSize) / 2);
     const dot = new QRDot({ context: canvasContext, type: options.dotsOptions.type });
 
-    canvasContext.beginPath();
-
-    for (let i = 0; i < count; i++) {
-      for (let j = 0; j < count; j++) {
-        if (filter && !filter(i, j)) {
-          continue;
-        }
-        if (!this._qr.isDark(i, j)) {
-          continue;
-        }
-        dot.draw(
-          xBeginning + i * dotSize,
-          yBeginning + j * dotSize,
-          dotSize,
-          (xOffset: number, yOffset: number): boolean => {
-            if (i + xOffset < 0 || j + yOffset < 0 || i + xOffset >= count || j + yOffset >= count) return false;
-            if (filter && !filter(i + xOffset, j + yOffset)) return false;
-            return !!this._qr && this._qr.isDark(i + xOffset, j + yOffset);
-          }
-        );
-      }
-    }
+    const isCorner = (i: number, j: number): boolean => {
+      const inTopLeft = i < 7 && j < 7;
+      const inTopRight = i > count - 8 && j < 7;
+      const inBottomLeft = i < 7 && j > count - 8;
+      return inTopLeft || inTopRight || inBottomLeft;
+    };
 
     if (options.dotsOptions.gradient) {
       const gradientOptions = options.dotsOptions.gradient;
@@ -224,7 +220,38 @@ export default class QRCanvas {
       canvasContext.fillStyle = canvasContext.strokeStyle = options.dotsOptions.color;
     }
 
-    canvasContext.fill("evenodd");
+    const defaultFillStyle = canvasContext.fillStyle;
+
+    for (let i = 0; i < count; i++) {
+      for (let j = 0; j < count; j++) {
+        if (filter && !filter(i, j)) {
+          continue;
+        }
+
+        const x = xBeginning + i * dotSize;
+        const y = yBeginning + j * dotSize;
+
+        if (!this._qr.isDark(i, j)) {
+          if (options.maskOptions?.drawMask && (options.maskOptions?.cornersMask || !isCorner(i, j))) {
+            const maskDot = new QRDot({ context: canvasContext, type: options.dotsOptions.type });
+            canvasContext.fillStyle = options.maskOptions?.color || "#fff";
+            canvasContext.beginPath();
+            maskDot.draw(x, y, dotSize, () => false);
+            canvasContext.fill();
+            canvasContext.fillStyle = defaultFillStyle;
+          }
+          continue;
+        }
+
+        canvasContext.beginPath();
+        dot.draw(x, y, dotSize, (xOffset: number, yOffset: number): boolean => {
+          if (i + xOffset < 0 || j + yOffset < 0 || i + xOffset >= count || j + yOffset >= count) return false;
+          if (filter && !filter(i + xOffset, j + yOffset)) return false;
+          return !!this._qr && this._qr.isDark(i + xOffset, j + yOffset);
+        });
+        canvasContext.fill("evenodd");
+      }
+    }
   }
 
   drawCorners(filter?: FilterFunction): void {
@@ -395,6 +422,27 @@ export default class QRCanvas {
     });
   }
 
+  loadBackgroundImage(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const options = this._options;
+      const image = new Image();
+
+      if (!options.maskOptions?.image) {
+        return reject("Image is not defined");
+      }
+
+      if (typeof options.imageOptions.crossOrigin === "string") {
+        image.crossOrigin = options.imageOptions.crossOrigin;
+      }
+
+      this._backgroundImage = image;
+      image.onload = (): void => {
+        resolve();
+      };
+      image.src = options.maskOptions.image;
+    });
+  }
+
   drawImage({
     width,
     height,
@@ -425,6 +473,36 @@ export default class QRCanvas {
     const dh = height - options.imageOptions.margin * 2;
 
     canvasContext.drawImage(this._image, dx, dy, dw < 0 ? 0 : dw, dh < 0 ? 0 : dh);
+  }
+
+  drawBackgroundImageCanvas({ count, dotSize }: { count: number; dotSize: number }): void {
+    const canvasContext = this.context;
+
+    if (!canvasContext) {
+      throw "canvasContext is not defined";
+    }
+
+    const options = this._options;
+
+    if (!this._backgroundImage) {
+      throw "background image is not defined";
+    }
+
+    const imageSize = options.maskOptions?.imageSize ?? 1;
+
+    const qrWidth = count * dotSize;
+    const qrHeight = count * dotSize;
+
+    const xBeginning = Math.floor((options.width - qrWidth) / 2);
+    const yBeginning = Math.floor((options.height - qrHeight) / 2);
+
+    const dw = qrWidth * imageSize;
+    const dh = qrHeight * imageSize;
+
+    const dx = xBeginning + (qrWidth - dw) / 2;
+    const dy = yBeginning + (qrHeight - dh) / 2;
+
+    canvasContext.drawImage(this._backgroundImage, dx, dy, dw, dh);
   }
 
   _createGradient({

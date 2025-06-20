@@ -149,6 +149,13 @@ export default class QRSVG {
     if (this._options.image) {
       this.drawImage({ width: drawImageSize.width, height: drawImageSize.height, count, dotSize });
     }
+
+    if (this._options.maskOptions?.image) {
+      this.drawBackgroundImage({
+        count: this._qr.getModuleCount(),
+        dotSize: dotSize
+      });
+    }
   }
 
   drawBackground(): void {
@@ -211,12 +218,32 @@ export default class QRSVG {
       name: "dot-color"
     });
 
+    const maskDotsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    maskDotsGroup.setAttribute("class", "green-dots");
+    this._element.appendChild(maskDotsGroup);
+
+    const isCorner = (i: number, j: number): boolean => {
+      const inTopLeft = i < 7 && j < 7;
+      const inTopRight = i > count - 8 && j < 7;
+      const inBottomLeft = i < 7 && j > count - 8;
+      return inTopLeft || inTopRight || inBottomLeft;
+    };
+
     for (let i = 0; i < count; i++) {
       for (let j = 0; j < count; j++) {
         if (filter && !filter(i, j)) {
           continue;
         }
         if (!this._qr?.isDark(i, j)) {
+          if (!options.maskOptions.drawMask) continue;
+          if (options.maskOptions?.cornersMask || !isCorner(i, j)) {
+            const lightDot = new QRDot({ svg: this._element, type: options.dotsOptions.type, window: this._window });
+            lightDot.draw(xBeginning + i * dotSize, yBeginning + j * dotSize, dotSize, () => false);
+            if (lightDot._element) {
+              lightDot._element.setAttribute("fill", options.maskOptions?.color || "#fff");
+              maskDotsGroup.appendChild(lightDot._element);
+            }
+          }
           continue;
         }
 
@@ -460,6 +487,41 @@ export default class QRSVG {
     image.setAttribute("height", `${dh}px`);
 
     this._element.appendChild(image);
+  }
+
+  drawBackgroundImage({ count, dotSize }: { count: number; dotSize: number }): void {
+    const options = this._options;
+
+    const imageUrl = options.maskOptions?.image || "";
+    const imageSize = options.maskOptions?.imageSize ?? 1;
+
+    const qrWidth = count * dotSize;
+    const qrHeight = count * dotSize;
+
+    const xBeginning = Math.floor((options.width - qrWidth) / 2);
+    const yBeginning = Math.floor((options.height - qrHeight) / 2);
+
+    const dw = qrWidth * imageSize;
+    const dh = qrHeight * imageSize;
+
+    const dx = xBeginning + (qrWidth - dw) / 2;
+    const dy = yBeginning + (qrHeight - dh) / 2;
+
+    const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    image.setAttribute("href", imageUrl);
+    image.setAttribute("x", String(dx));
+    image.setAttribute("y", String(dy));
+    image.setAttribute("width", `${dw}px`);
+    image.setAttribute("height", `${dh}px`);
+    image.setAttribute("preserveAspectRatio", "xMidYMid slice");
+
+    const firstRect = Array.from(this._element.children).find((el) => el.tagName.toLowerCase() === "rect");
+
+    if (firstRect) {
+      this._element.insertBefore(image, firstRect.nextSibling);
+    } else {
+      this._element.insertBefore(image, this._element.firstChild);
+    }
   }
 
   _createColor({

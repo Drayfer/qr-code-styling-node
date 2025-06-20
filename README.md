@@ -101,6 +101,7 @@ cornersDotOptionsHelper|object                   |             |Dots in the corn
 backgroundOptions      |object                   |             |QR background styling options
 nodeCanvas             |node-canvas              |             |Only specify when running on a node server for canvas type, please refer to node section below
 jsDom                  |jsdom                    |             |Only specify when running on a node server for svg type, please refer to node section below
+maskOptions            |object                   |             |Options for styling the QR code background mask and embedded image.
 
 `options.qrOptions` structure
 
@@ -183,6 +184,16 @@ Property|Type            |Default Value|Description
 --------|----------------|-------------|-----------------------------------
 offset  |number (`0 - 1`)|             |Position of color in gradient range
 color   |string          |             |Color of stop in gradient range
+
+`options.maskOptions` structure
+
+Property|Type            |Default Value|Description
+-------------|----------|----------|-----------------------------------
+drawMask     |boolean   |`false`   |Whether to draw a background mask behind the QR code dots.
+color        |string    |`#fff`    |Color used for the mask
+image        |string    |          |URL or base64 string of the image to be placed in the background of the QR code
+imageSize    |number    |`0.8`     |A coefficient (from 0 to 1) defining the relative size of the background image within th QR area. The image remains centered regardless of the size.
+cornersMask  |boolean   |`true`    |Whether to apply the mask to the corners of the QR code as well.
 
 #### QRCodeStyling methods
 `QRCodeStyling.append(container) => void`

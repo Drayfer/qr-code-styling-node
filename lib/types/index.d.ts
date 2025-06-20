@@ -110,6 +110,13 @@ export declare type Options = {
         color?: string;
         gradient?: Gradient;
     };
+    maskOptions?: {
+        drawMask?: boolean;
+        color?: string;
+        image?: string;
+        imageSize?: number;
+        cornersMask?: boolean;
+    };
 };
 export declare type FilterFunction = (i: number, j: number) => boolean;
 export declare type DownloadOptions = {
