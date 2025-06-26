@@ -218,7 +218,7 @@ export default class QRSVG {
       name: "dot-color"
     });
 
-    const maskDotsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const maskDotsGroup = this._window.document.createElementNS("http://www.w3.org/2000/svg", "g");
     maskDotsGroup.setAttribute("class", "green-dots");
     this._element.appendChild(maskDotsGroup);
 
@@ -507,7 +507,7 @@ export default class QRSVG {
     const dx = xBeginning + (qrWidth - dw) / 2;
     const dy = yBeginning + (qrHeight - dh) / 2;
 
-    const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    const image = this._window.document.createElementNS("http://www.w3.org/2000/svg", "image");
     image.setAttribute("href", imageUrl);
     image.setAttribute("x", String(dx));
     image.setAttribute("y", String(dy));
